@@ -6,14 +6,15 @@ from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-import logging, os
+import logging, os, json
+from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command, interrupt
 
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(name=f"Agent.{__name__}")
+logger = logging.getLogger(name=f"Agent.{__name__}.-------->")
 settings = Settings(r"C:\Users\Cristopher Hdz\Desktop\Test\hw_agent\src\config\hw_agent.yaml")
 config = {"configurable": {"thread_id": "1"}}
 
@@ -73,10 +74,7 @@ llm_with_tools = llm.bind_tools(tools)
 # function node for the graph. 
 # Uses and returns the dictionary with the messages key
 def chatbot(state:State):
-    message = llm_with_tools.invoke(state["messages"])
-    # Ensure a single tool call to prevent for loop calling tools after human interaction
-    assert len(message.tool_calls) <= 1
-    return {"messages": []}
+    return {"messages": [llm_with_tools.invoke(state["messages"])]}
 
 # Tracks the state of the complete loop
 graph_builder = StateGraph(State)
@@ -84,11 +82,13 @@ graph_builder = StateGraph(State)
 graph_builder.add_node("chatbot",chatbot)
 
 # ------------------ tool call function --------------
+
 # prebuild for the class BasicToolNode
 tool_node = ToolNode(tools=tools)
 graph_builder.add_node("tools", tool_node)
 
 # ----------------------------------------------------
+
 # Prebuilt for tool function verification
 graph_builder.add_conditional_edges(
     "chatbot",tools_condition
@@ -107,17 +107,49 @@ def stream_updates(user_input: str):
     for chunk in graph.stream(
         {"messages": [{"role": "user", "content": user_input}]},
         config=config,
-        stream_mode="values"
+        stream_mode="updates",
+        subgraphs=True
     ):
-        print("Assistant:",chunk['messages'][-1].content)
+        # print("Assistant:",chunk['messages'][-1].content)
+        print("\n\nChunk response:",chunk,"\n\n")
 
+# Not completely useful
+def stream_tokens(user_input:str):
+    for token, metadata in graph.stream(
+        {"messages": [{"role": "user", "content": user_input}]},
+        config=config,
+        stream_mode="messages",
+        subgraphs=True
+    ):
+        print("\n\nChunk response:",token,"\n",metadata)
+
+def stream_multiple(user_input: str):
+    for chunk in graph.stream(
+        {"messages": [{"role": "user", "content": user_input}]},
+        config=config,
+        stream_mode=["updates","values","checkpoints"],
+        subgraphs=True
+    ):
+        print("\n\nChunk response:",chunk,"\n\n")
+
+def stream_debug(user_input: str):
+    for chunk in graph.stream(
+        {"messages": [{"role": "user", "content": user_input}]},
+        config=config,
+        stream_mode="debug",
+        subgraphs=True
+    ):
+        print("\n\nChunk response:",chunk,"\n\n")
 while True:
     try:
         user_input = input("User: ")
         if user_input.lower() in ["quit", "exit", "q"]:
             print("Goodbye!")
             break
-        stream_updates(user_input)
+        # stream_updates(user_input)
+        # stream_tokens(user_input)
+        # stream_multiple(user_input)
+        stream_debug(user_input)
     except:
         # in case input or stream fails
         user_input = "What do you know about LangGraph?"
