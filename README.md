@@ -3,8 +3,6 @@
 > [!NOTE]  
 > Last update 7-10-2025
 
-### last update: 07-10-2025
-
 Different agent and LLM aplications using lang libraries and tools to create workflows and agent tools
 
 ## Features
@@ -27,3 +25,4 @@ Different agent and LLM aplications using lang libraries and tools to create wor
 
 - [Best version](chain_app.py)
 - [Architecture](walkthrough/Agent_architecture_FULL.png)
+- [Demo video](walkthrough/Supervisor_Demo.mp4)
