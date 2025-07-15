@@ -1,0 +1,141 @@
+from langgraph.prebuilt import create_react_agent
+from langgraph.checkpoint.memory import InMemorySaver
+from src.modules.llm_client import LLM_Client
+from .modules.tools.songs import SongTool
+from .modules.tools.files import FileTool
+import logging
+from langchain_core.tools import tool
+from typing import Annotated
+from langgraph.types import Command,Send
+from langgraph.graph import MessagesState
+from langgraph.prebuilt import InjectedState
+
+logger = logging.getLogger(name=f"Prebuild.{__name__}")
+
+class PreBuildAgent:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(PreBuildAgent,cls).__new__(cls)
+            cls._instance._init()
+        return cls._instance
+
+    def _init(self):
+        if self._initialized:
+            return
+        self.llm_client = LLM_Client()
+        self.song_tools = SongTool().get_song_tools()
+        self.file_tools = FileTool().get_file_tools()
+        self.checkpointer = InMemorySaver()
+        self.config = {"configurable":{"thread_id":"invoke"}}
+        self.workers = []
+        self.workers_handsoff = []
+        self._build_worker_agents([
+                ("file_agent",self.file_tools,"You are a file assistant"),
+                ("song_agent",self.song_tools,"You are a songs assistant")
+            ])
+        self._build_supervisor_tools()
+        self._build_supervisor()
+        self._initialized = True
+
+    #TODO: optimize
+    def _build_worker_agents(self,worker_list:list):
+        for worker in worker_list:
+            llm = self.llm_client.build_llm_client()
+            agent = create_react_agent(
+                model=llm,
+                tools=worker[1],
+                prompt=worker[2],
+                name=worker[0],
+            )
+            self.workers.append((agent.name,agent))
+        """ song_llm = self.llm_client.build_llm_client()
+        file_llm = self.llm_client.build_llm_client()
+
+        self.file_agent = create_react_agent(
+            model=file_llm,
+            tools=self.file_tools,
+            prompt=(
+                "You are a file system manager agent"
+                "Instructions:\n"
+                "-Assist only with file management tasks\n"
+                "-When finish, respond to supervisor directly\n"
+                "-Respond ONLY with the results of your work, do NOT include ANY extra text"
+            ),
+            name="file_agent"
+        )
+        self.workers.append(self.file_agent.name)
+        logger.info(f'agent created: {self.file_agent.name}')
+
+        self.song_agent = create_react_agent(
+            model=song_llm,
+            tools=self.song_tools,
+            prompt=(
+                "You are a song manager agent"
+                "Instructions:\n"
+                "-Assist only with song management tasks\n"
+                "-When finish, respond to supervisor directly\n"
+                "-Respond ONLY with the results of your work, do NOT include ANY extra text"
+            ),
+            name="song_agent"
+        )
+        self.workers.append(self.song_agent.name)
+        logger.info(f'agent created: {self.song_agent.name}') """
+
+    def _create_task_description_handoff_tool(self,
+            *, agent_name: str, description: str | None = None
+        ):
+        name = f"transfer_to_{agent_name}"
+        description = description or f"Ask {agent_name} for help."
+
+        @tool(name, description=description)
+        def _handoff_tool(
+            # this is populated by the supervisor LLM
+            task_description: Annotated[
+                str,
+                "Description of what the next agent should do, including all of the relevant context. Include necessary arguments for the next agent to work at the best performance possible",
+            ],
+            # these parameters are ignored by the LLM, add manually
+            state: Annotated[MessagesState, InjectedState],
+        ) -> Command:
+            extra_args = state["messages"][-1].tool_calls[0]['args']['state']
+            supervisor_instruction = task_description + f" extra details: {extra_args}"
+            # logger.debug(supervisor_instruction)
+            task_description_message = {"role": "user", "content": supervisor_instruction}
+            agent_input = {**state, "messages": [task_description_message]}
+            return Command(
+                goto=[Send(agent_name, agent_input)],
+                graph=Command.PARENT,
+            )
+
+        return _handoff_tool
+
+    def _build_supervisor_tools(self):
+        for worker in self.workers:
+            transfer_to_agent = self._create_task_description_handoff_tool(
+                agent_name=worker[0],
+                description=f"Assign tasks to the {worker[0]} worker agent"
+            )
+            logger.debug(f"Agent to supervisor:{worker[0]}")
+            logger.debug(transfer_to_agent)
+            self.workers_handsoff.append(transfer_to_agent)
+
+    def _build_supervisor(self):
+        supervisor_llm = self.llm_client.build_llm_client()
+        self.supervisor_agent = create_react_agent(
+            model=supervisor_llm,
+            tools=self.workers_handsoff,
+            prompt=(
+                "You are a supervisor managing two agents:\n"
+                "- a file agent. Assign file_management-related tasks to this agent\n"
+                "- a song agent. Assign song-related tasks to this agent\n"
+                "-Assign work to one agent at a time, do not call agents in parallel.\n"
+                "-Always acknowledge the user about the content that you have generated by your own and the reason\n"
+                "-After compleating the workflow, respond the user query from the beginning with the information from the agents\n"
+                "If one of the results you get from the agents or operations indicates an error or does not fullfill the initial user request, try re-running the tasks again with the suitable adjustements"
+            ),
+            name="supervisor"
+        )
+        logger.info('Supervisor agent created')

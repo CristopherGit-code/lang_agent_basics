@@ -269,5 +269,3 @@ while True:
         print("AGENT:\n",response)
     except Exception as e:
         logger.info(f'General error: {e}')
-
-# Query: Could you add the songs dancing queen and dont stop me now to my personal playlist and then write a file called playlist.txt into my machine with the songs that where added to the playlist?
