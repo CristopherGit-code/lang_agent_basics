@@ -31,6 +31,11 @@ class LLM_Client:
 def main():
     llm = LLM_Client()
     llm_client = llm.build_llm_client()
+    while True:
+        user_input = input("USER: ")
+        response = llm_client.invoke(user_input)
+        print("MODEL:")
+        print(response.content)
 
 if __name__ == "__main__":
     main()

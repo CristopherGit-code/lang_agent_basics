@@ -13,3 +13,9 @@ langfuse:
   secret_key:  ${SECRET_KEY}
   public_key:  ${PUBLIC_KEY}
   host:  ${HOST}
+  SECRET_VM_KEY:  ${SECRET_VM_KEY}
+  PUBLIC_VM_KEY:  ${PUBLIC_VM_KEY}
+  VM_HOST:  ${VM_HOST}
+  SECRET_LOCAL_KEY:  ${SECRET_LOCAL_KEY}
+  PUBLIC_LOCAL_KEY:  ${PUBLIC_LOCAL_KEY}
+  LOCAL_HOST:  ${LOCAL_HOST}

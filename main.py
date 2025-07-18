@@ -25,17 +25,6 @@ for agent in prebuild_agents.workers:
     main_graph_builder.add_edge(agent[0],"supervisor")
 supervisor = main_graph_builder.compile(checkpointer=prebuild_agents.checkpointer)
 
-## Manual agent build
-""" main_graph_builder = StateGraph(MessagesState)
-main_graph_builder.add_node(custom_agents.supervisor)
-main_graph_builder.add_node(graph_agents.song_agent)
-main_graph_builder.add_node(graph_agents.file_agent)
-main_graph_builder.add_edge(START, "supervisor_agent")
-main_graph_builder.add_edge("file_agent", "supervisor_agent")
-main_graph_builder.add_edge("song_agent", "supervisor_agent")
-supervisor = main_graph_builder.compile(checkpointer=custom_agents.checkpointer)
-logger.info("Custom supervisor built") """
-
 def stream_updates(user_input: str) -> str:
     """Creates a custom workflow to fulfill the user's request using a variety of agents"""
     final_response = []

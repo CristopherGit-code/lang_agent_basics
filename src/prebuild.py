@@ -51,38 +51,6 @@ class PreBuildAgent:
                 name=worker[0],
             )
             self.workers.append((agent.name,agent))
-        """ song_llm = self.llm_client.build_llm_client()
-        file_llm = self.llm_client.build_llm_client()
-
-        self.file_agent = create_react_agent(
-            model=file_llm,
-            tools=self.file_tools,
-            prompt=(
-                "You are a file system manager agent"
-                "Instructions:\n"
-                "-Assist only with file management tasks\n"
-                "-When finish, respond to supervisor directly\n"
-                "-Respond ONLY with the results of your work, do NOT include ANY extra text"
-            ),
-            name="file_agent"
-        )
-        self.workers.append(self.file_agent.name)
-        logger.info(f'agent created: {self.file_agent.name}')
-
-        self.song_agent = create_react_agent(
-            model=song_llm,
-            tools=self.song_tools,
-            prompt=(
-                "You are a song manager agent"
-                "Instructions:\n"
-                "-Assist only with song management tasks\n"
-                "-When finish, respond to supervisor directly\n"
-                "-Respond ONLY with the results of your work, do NOT include ANY extra text"
-            ),
-            name="song_agent"
-        )
-        self.workers.append(self.song_agent.name)
-        logger.info(f'agent created: {self.song_agent.name}') """
 
     def _create_task_description_handoff_tool(self,
             *, agent_name: str, description: str | None = None
@@ -118,8 +86,8 @@ class PreBuildAgent:
                 agent_name=worker[0],
                 description=f"Assign tasks to the {worker[0]} worker agent"
             )
-            logger.debug(f"Agent to supervisor:{worker[0]}")
-            logger.debug(transfer_to_agent)
+            # logger.debug(f"Agent to supervisor:{worker[0]}")
+            # logger.debug(transfer_to_agent)
             self.workers_handsoff.append(transfer_to_agent)
 
     def _build_supervisor(self):
